@@ -1,0 +1,306 @@
+#include <SoftwareSerial.h> 
+
+#include <DFRobot_DHT11.h>
+DFRobot_DHT11 DHT;
+#include"HX711.h"
+//핀 설정 블루트스
+SoftwareSerial bt(3, 2);
+//핀 설정 모터
+
+#define ENABLE_A  5  
+#define IN1_A  6  
+#define IN2_A  7  
+#define ENABLE_B  10  
+#define IN3_B  8  
+#define IN4_B  9  
+
+//핀 설정 헬멧
+
+#define DHT11_PIN 11
+int FSR1 = A0;
+int trigPin = 12 ;
+int echoPin = 13;
+
+//핀 설정 로드셀
+const int LOADCELL_DOUT_PIN_1 = 22;
+const int LOADCELL_SCK_PIN_1 = 23;
+
+const int LOADCELL_DOUT_PIN_2 = 24;
+const int LOADCELL_SCK_PIN_2 = 25;
+
+const int LOADCELL_DOUT_PIN_3 = 26;
+const int LOADCELL_SCK_PIN_3 = 27;
+
+const int LOADCELL_DOUT_PIN_4 = 28;
+const int LOADCELL_SCK_PIN_4 = 29;
+
+
+const int LOADCELL_DOUT_PIN_5 = 30;
+const int LOADCELL_SCK_PIN_5 = 31;
+
+
+const int LOADCELL_DOUT_PIN_6 = 32;
+const int LOADCELL_SCK_PIN_6 = 33;
+
+HX711 scale;
+byte speedDC = 255;//모터 최고 속도
+const int aver_Humi = 67; //평균 습도 설정
+
+void setup(){
+  Serial.begin(9600);
+  bt.begin(9600);
+
+  pinMode(echoPin, INPUT);
+  pinMode(trigPin, OUTPUT);
+ 
+  pinMode(ENABLE_A, OUTPUT);  
+  pinMode(IN1_A, OUTPUT);  
+  pinMode(IN2_A, OUTPUT);  
+  pinMode(ENABLE_B, OUTPUT);  
+  pinMode(IN3_B, OUTPUT);  
+  pinMode(IN4_B, OUTPUT);  
+
+
+}
+//모터 스피드 설정 함수
+void motor_speed(int spd)  
+{  
+  analogWrite(ENABLE_A, spd);  
+  analogWrite(ENABLE_B, spd);  
+}  
+//모터 제어 
+void motor_dir(int dir)  
+{  
+  if (dir == 0) {  // 후진  
+  digitalWrite(IN1_A, LOW);  
+    digitalWrite(IN2_A, HIGH);  
+    digitalWrite(IN3_B, LOW);  
+    digitalWrite(IN4_B, HIGH);  
+  }  
+  else if (dir == 1) { // 우회전  
+    digitalWrite(IN1_A, HIGH);  
+    digitalWrite(IN2_A, LOW);  
+    digitalWrite(IN3_B, LOW);  
+    digitalWrite(IN4_B, HIGH);  
+  }  
+  else if (dir == 2) { // 좌회전  
+    digitalWrite(IN1_A, LOW);  
+    digitalWrite(IN2_A, HIGH);  
+    digitalWrite(IN3_B, HIGH);  
+    digitalWrite(IN4_B, LOW);  
+  }    
+  else if (dir == 4) { // 전진  
+
+   digitalWrite(IN1_A, HIGH);  
+    digitalWrite(IN2_A, LOW);  
+    digitalWrite(IN3_B, HIGH);  
+    digitalWrite(IN4_B, LOW);  
+   
+
+   
+    for (int i = 0; i>= 255;) {
+    motor_speed(i);
+    i = i + 10;
+
+    delay(500);}
+  }
+  else if (dir == 5) { // 정지
+
+    for (int i = 255; i >= 0;) {
+    motor_speed(i);
+    i = i - 10;
+
+    delay(500);}
+    digitalWrite(IN1_A, LOW);  
+    digitalWrite(IN2_A, LOW);  
+    digitalWrite(IN3_B, LOW);  
+    digitalWrite(IN4_B, LOW);
+  }    
+}  
+//헬멧 적외선 센서
+int IR_sensor(){
+long duration, distance;
+digitalWrite (trigPin, HIGH);
+delayMicroseconds(10);
+digitalWrite(trigPin, LOW);
+duration = pulseIn(echoPin, HIGH);
+distance = ((float)(340*duration)/1000)/2;
+
+Serial.print("\n Distance");
+Serial.print(distance);
+Serial.print("mm\n");
+
+if (distance<3000 )
+ return 1;
+ 
+if (distance>10000)
+ return 0 ;
+else  return 1 ;//운행시작
+
+
+}
+//헬멧 온습도 센서
+int DHT_read(){
+DHT.read(DHT11_PIN);
+int H = DHT.humidity;
+return H;
+}
+
+int DHT_sensor(){
+ 
+  DHT.read(DHT11_PIN);
+  int humi = DHT.humidity;
+ 
+  Serial.print("humi: ");
+  Serial.println(humi);
+  if(humi >=70)
+    return 1;
+
+  else
+    return 0;
+
+ 
+  }
+
+//헬멧 압력센서
+int FSR_sensor(){
+  int value1 = analogRead(FSR1);
+
+  Serial.print("FSR1: ");
+  Serial.println(value1);
+
+
+ 
+  if( value1=0)
+    return 1;
+
+  else
+    return 0;
+}
+
+//로드셀 센서 1~6번까지 센서 값 받아오기
+int loadcell_1 (){
+scale.begin(LOADCELL_DOUT_PIN_1, LOADCELL_SCK_PIN_1);
+  if (scale.is_ready()) {
+    long reading = scale.read();
+    Serial.print("HX711 reading_1: ");
+    Serial.println(reading);
+  } else {
+    Serial.println("HX711 not found.");
+  }
+   if (scale.read() < 170000)
+      return 1;
+   else return 0 ;
+}
+
+int loadcell_2 (){
+scale.begin(LOADCELL_DOUT_PIN_2, LOADCELL_SCK_PIN_2);
+  if (scale.is_ready()) {
+    long reading = scale.read();
+    Serial.print("HX711 reading_2: ");
+    Serial.println(reading);
+  } else {
+    Serial.println("HX711 not found.");
+  }
+   if (scale.read() < 170000)
+      return 1;
+   else return 0 ;
+}
+
+int loadcell_3 (){
+scale.begin(LOADCELL_DOUT_PIN_3, LOADCELL_SCK_PIN_3);
+  if (scale.is_ready()) {
+    long reading = scale.read();
+    Serial.print("HX711 reading_3: ");
+    Serial.println(reading);
+  } else {
+    Serial.println("HX711 not found.");
+  }
+   if (scale.read() < 170000)
+      return 1;
+   else return 0 ;
+}
+
+int loadcell_4 (){
+scale.begin(LOADCELL_DOUT_PIN_4, LOADCELL_SCK_PIN_4);
+  if (scale.is_ready()) {
+    long reading = scale.read();
+    Serial.print("HX711 reading_4: ");
+    Serial.println(reading);
+  } else {
+    Serial.println("HX711 not found.");
+  }
+   if (scale.read() < 170000)
+      return 1;
+   else return 0 ;
+}
+
+int loadcell_5 (){
+scale.begin(LOADCELL_DOUT_PIN_5, LOADCELL_SCK_PIN_5);
+  if (scale.is_ready()) {
+    long reading = scale.read();
+    Serial.print("HX711 reading_5: ");
+    Serial.println(reading);
+  } else {
+    Serial.println("HX711 not found.");
+  }
+   if (scale.read() < 170000)
+      return 1;
+   else return 0 ;
+}
+
+int loadcell_6 (){
+scale.begin(LOADCELL_DOUT_PIN_6, LOADCELL_SCK_PIN_6);
+  if (scale.is_ready()) {
+    long reading = scale.read();
+    Serial.print("HX711 reading_6: ");
+    Serial.println(reading);
+  } else {
+    Serial.println("HX711 not found.");
+  }
+   if (scale.read() < 170000)
+      return 1;
+   else return 0 ;
+}
+
+
+void loop(){
+int IR=IR_sensor();
+int DHT =DHT_sensor();
+int FSR = FSR_sensor();
+
+int Halmet_result = IR + DHT + FSR;
+int loadcell_result = loadcell_1()+loadcell_2()+loadcell_3()+loadcell_4()+loadcell_5()+loadcell_6();
+
+int sign1;
+
+Serial.println(Halmet_result);
+Serial.println(loadcell_result);
+
+
+if(bt.available()){
+    sign1 = (int)Serial.write(bt.read());
+    
+}
+if(Serial.available()){
+    bt.write(Serial.read()); 
+}
+
+Serial.println(sign1); //블루투스 통신 결과 앱인벤터에서 주는 통신
+
+if ( sign1 == 1){
+  if(Halmet_result>=2 && loadcell_result <= 4)
+  { motor_dir(4); //모터 작동
+    motor_speed(255);
+  }
+
+  if (Halmet_result<2){
+    motor_dir(5);//모터 정지
+    delay(5000);
+  }  
+
+if (Halmet_result<2 && loadcell_result>4)
+    motor_dir(5);//모터 정지
+
+}
+}
