@@ -1,0 +1,172 @@
+#include <SoftwareSerial.h>
+#include <DFRobot_DHT11.h>
+#include <Wire.h>
+DFRobot_DHT11 DHT;
+
+//SoftwareSerial bt(18,19);
+byte speedDC = 255;
+#define ENABLE_A  5
+#define IN1_A  6
+#define IN2_A  7
+#define ENABLE_B  10
+#define IN3_B  8
+#define IN4_B  9
+
+#define DHT11_PIN 11
+int FSR1 = A0;
+int trigPin = 12;
+int echoPin = 13;
+
+int FSR_0 = A0;
+int FSR_1 = A1;
+int FSR_2 = A2;
+int FSR_3 = A3;
+int FSR_4 = A4;
+int FSR_5 = A5;
+
+const int aver_Humi = 20; // 평균 습도 설정
+void setup() {
+   // 시리얼 통신 속도 설정
+  //Serial1.begin(9600); 
+  Wire.begin();
+  Serial.begin(9600);// 블루투스 시리얼 통신 속도 설정
+  //bt.begin(9600);
+  //pinMode(echoPin, INPUT);
+  //pinMode(trigPin, OUTPUT);
+
+  pinMode(ENABLE_A, OUTPUT);
+  pinMode(IN1_A, OUTPUT);
+  pinMode(IN2_A, OUTPUT);
+  pinMode(ENABLE_B, OUTPUT);
+  pinMode(IN3_B, OUTPUT);
+  pinMode(IN4_B, OUTPUT);
+  pinMode(ENABLE_A, LOW);
+  pinMode(ENABLE_B, LOW); 
+}
+
+void motor_speed(int spd) {
+  analogWrite(ENABLE_A, spd);
+  analogWrite(ENABLE_B, spd);
+}
+
+void motor_dir(int dir) {
+  if (dir == 0) { // 전진
+    digitalWrite(IN1_A, LOW);
+    digitalWrite(IN2_A, HIGH);
+    digitalWrite(IN3_B, LOW);
+    digitalWrite(IN4_B, HIGH);
+    motor_speed(speedDC);
+}
+   else if (dir == 1) { // 우회전
+    digitalWrite(IN1_A, HIGH);
+    digitalWrite(IN2_A, LOW);
+    digitalWrite(IN3_B, LOW);
+    digitalWrite(IN4_B, HIGH);
+  } else if (dir == 2) { // 좌회전
+    digitalWrite(IN1_A, LOW);
+    digitalWrite(IN2_A, HIGH);
+    digitalWrite(IN3_B, HIGH);
+    digitalWrite(IN4_B, LOW);
+  } else if (dir == 4) { // 후진
+    digitalWrite(IN1_A, HIGH);
+    digitalWrite(IN2_A, LOW);
+    digitalWrite(IN3_B, HIGH);
+    digitalWrite(IN4_B, LOW);
+    motor_speed(speedDC);
+  } else if (dir == 5) { // 정지
+    motor_speed(0);
+    digitalWrite(IN1_A, LOW);
+    digitalWrite(IN2_A, LOW);
+    digitalWrite(IN3_B, LOW);
+    digitalWrite(IN4_B, LOW);
+  }
+}
+void motor_go(){
+  digitalWrite(IN1_A, LOW);
+  digitalWrite(IN2_A, HIGH);
+  digitalWrite(IN3_B, LOW);
+  digitalWrite(IN4_B, HIGH);
+  motor_speed(speedDC);
+}
+int IR_sensor() {
+  long duration, distance;
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  duration = pulseIn(echoPin, HIGH);
+  distance = ((float)(340 * duration) / 1000) / 2;
+  
+ // Serial.print("\n Distance");
+  //Serial.print(distance);
+  //Serial.print("mm\n");
+  
+  return (distance < 3000) ? 1 : 0;
+}
+
+int DHT_sensor() {
+    DHT.read(DHT11_PIN);
+    int humi = DHT.humidity;
+  Serial.print("humi: ");
+  Serial.println(humi);
+  return (humi >= aver_Humi) ? 1 : 0;
+}
+
+int FSR_sensor() {
+  int value = analogRead(FSR1);
+ //  Serial.print("FSR1: ");
+  // Serial.println(value);
+  return (value == 0) ? 1 : 0;
+}
+
+int FSRb_sensor() {
+  int zeroCountGroup = 0;
+  int pressureSensorValues[7] = {
+    analogRead(FSR_0),analogRead(FSR_1), analogRead(FSR_2), analogRead(FSR_3),
+    analogRead(FSR_4), analogRead(FSR_5)
+  };
+
+  for (int i = 0; i < 6; i++) {
+    
+    //Serial.print(i);
+    //Serial.print(" : ");
+    //Serial.println(pressureSensorValues[i]);
+    if (pressureSensorValues[i] <100) {
+      zeroCountGroup++;
+    }
+  }
+
+   /* Serial.print("0: ");
+ Serial.println(analogRead(FSR_0));
+  Serial.print("1: ");
+ Serial.println(analogRead(FSR_1));
+  Serial.print("2: ");
+ Serial.println(analogRead(FSR_2));
+  Serial.print("3: ");
+ Serial.println(analogRead(FSR_3));
+  Serial.print("4: ");
+ Serial.println(analogRead(FSR_4)); 
+ Serial.print("5: ");
+ Serial.println(analogRead(FSR_5));
+*/
+  Serial.println(zeroCountGroup); 
+  
+  return zeroCountGroup;
+ 
+}
+
+void loop() {
+ // int IR = IR_sensor();
+  int DHT = DHT_sensor();
+  int FSR = FSR_sensor();
+   int Halmet_result = FSR + DHT + 1;
+  Serial.println(Halmet_result);
+  int FSRb_sensor_result = FSRb_sensor();
+  
+  delay(2000);
+    if (Halmet_result < 2 || FSRb_sensor_result >= 4) {
+        Wire.beginTransmission(1);                
+        Wire.write("F");    
+        Serial.println("OK");
+        Wire.endTransmission();   
+ }
+}
